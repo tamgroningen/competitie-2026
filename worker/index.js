@@ -44,17 +44,16 @@ const SEED_DATA = {
   ]
 };
 
-const FRUITS = [
-  'appel', 'banaan', 'peer', 'aardbei', 'kers', 'druif', 'mango',
-  'ananas', 'citroen', 'sinaasappel', 'framboos', 'meloen', 'pruim',
-  'perzik', 'kiwi', 'bosbes', 'braam', 'vijg', 'granaatappel', 'papaya',
-  'kokos', 'limoen', 'abrikoos', 'passievrucht', 'lychee',
+const NAMES = [
+  'federer', 'nadal', 'alcaraz', 'sinner', 'thiem', 'williams',
+  'swiatek', 'medvedev', 'dimitrov', 'zverev', 'raducanu', 'fritz',
+  'sabalenka', 'draper', 'djokovic', 'murray',
 ];
 
 function generateCode() {
-  const fruit = FRUITS[Math.floor(Math.random() * FRUITS.length)];
+  const name = NAMES[Math.floor(Math.random() * NAMES.length)];
   const num = Math.floor(10 + Math.random() * 90);
-  return `${fruit}${num}`;
+  return `${name}${num}`;
 }
 
 function generateMatchups(teamIds) {
