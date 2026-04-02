@@ -45,7 +45,7 @@ const SEED_DATA = {
 };
 
 const NAMES = [
-  'federer', 'nadal', 'alcaraz', 'sinner', 'thiem', 'williams',
+  'federer', 'nadal', 'alcaraz', 'sinner', 'thiem',
   'swiatek', 'medvedev', 'dimitrov', 'zverev', 'raducanu', 'fritz',
   'sabalenka', 'draper', 'djokovic', 'murray',
 ];
