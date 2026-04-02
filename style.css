@@ -1,9 +1,9 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 :root {
-    --green: #2d6a4f;
-    --green-light: #40916c;
-    --green-bg: #d8f3dc;
+    --green: #7b2d8e;
+    --green-light: #9b4db5;
+    --green-bg: #f0e0f5;
     --bg: #f8f9fa;
     --card: #ffffff;
     --text: #212529;
@@ -35,6 +35,15 @@ nav .nav-brand {
     text-decoration: none;
     font-weight: 700;
     font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+nav .nav-logo {
+    height: 32px;
+    width: 32px;
+    border-radius: 4px;
 }
 
 nav .nav-right {
