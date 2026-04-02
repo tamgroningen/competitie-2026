@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TAM Vrijdagcompetitie</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav>
+        <a href="#" class="nav-brand">TAM Vrijdagcompetitie</a>
+        <div class="nav-right" id="nav-auth"></div>
+    </nav>
+    <main id="app"></main>
+
+<script>
+const SYNC_URL = 'https://competitie-sync.tam-floris.workers.dev';
+let DATA = null;
+let ADMIN_DATA = null; // full data with codes, only for admin
+
+function getAuth() {
+    const raw = localStorage.getItem('competitie_auth');
+    return raw ? JSON.parse(raw) : null;
+}
+
+function setAuth(auth) {
+    localStorage.setItem('competitie_auth', JSON.stringify(auth));
+}
+
+function clearAuth() {
+    localStorage.removeItem('competitie_auth');
+    ADMIN_DATA = null;
+}
+
+function isAdmin() { return getAuth()?.role === 'admin'; }
+function getTeamId() { return getAuth()?.role === 'team' ? getAuth().team_id : null; }
+
+// --- API ---
+
+async function fetchData() {
+    const res = await fetch(SYNC_URL + '/data');
+    DATA = await res.json();
+    return DATA;
+}
+
+async function apiLogin(code) {
+    const res = await fetch(SYNC_URL + '/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code }),
+    });
+    return res.json();
+}
+
+async function apiSavePlayers(teamId, players) {
+    const auth = getAuth();
+    const res = await fetch(SYNC_URL + '/players', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: auth.code, team_id: teamId, players }),
+    });
+    return res.json();
+}
+
+async function apiSaveResult(pouleId, matchupId, matchIdx, homePlayers, awayPlayers, sets) {
+    const auth = getAuth();
+    const res = await fetch(SYNC_URL + '/result', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            code: auth.code, poule_id: pouleId, matchup_id: matchupId,
+            match_idx: matchIdx, home_players: homePlayers, away_players: awayPlayers, sets,
+        }),
+    });
+    return res.json();
+}
+
+async function apiResetResult(pouleId, matchupId, matchIdx) {
+    const auth = getAuth();
+    const res = await fetch(SYNC_URL + '/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            code: auth.code, poule_id: pouleId, matchup_id: matchupId, match_idx: matchIdx,
+        }),
+    });
+    return res.json();
+}
+
+// --- Standings ---
+
+function matchWinner(m) {
+    if (!m.played) return null;
+    const h = m.sets.filter(s => s[0] > s[1]).length;
+    const a = m.sets.filter(s => s[1] > s[0]).length;
+    if (h > a) return 'home';
+    if (a > h) return 'away';
+    return null;
+}
+
+function isMatchupPlayed(mu) {
+    return mu.matches.every(m => m.played);
+}
+
+function calcStandings(poule) {
+    const stats = {};
+    for (const t of poule.teams) {
+        stats[t.id] = {
+            team: t, matchups_played: 0, matchups_won: 0, matchups_lost: 0, matchups_draw: 0,
+            matches_won: 0, matches_lost: 0, sets_won: 0, sets_lost: 0, games_won: 0, games_lost: 0,
+        };
+    }
+
+    for (const mu of poule.matchups) {
+        const { home, away } = mu;
+        let muHomeWins = 0, muAwayWins = 0;
+
+        for (const m of mu.matches) {
+            if (!m.played) continue;
+            let hSets = 0, aSets = 0;
+            for (const s of m.sets) {
+                if (stats[home]) { stats[home].games_won += s[0]; stats[home].games_lost += s[1]; }
+                if (stats[away]) { stats[away].games_won += s[1]; stats[away].games_lost += s[0]; }
+                if (s[0] > s[1]) hSets++; else aSets++;
+            }
+            if (stats[home]) { stats[home].sets_won += hSets; stats[home].sets_lost += aSets; }
+            if (stats[away]) { stats[away].sets_won += aSets; stats[away].sets_lost += hSets; }
+
+            const w = matchWinner(m);
+            if (w === 'home') {
+                if (stats[home]) stats[home].matches_won++;
+                if (stats[away]) stats[away].matches_lost++;
+                muHomeWins++;
+            } else if (w === 'away') {
+                if (stats[away]) stats[away].matches_won++;
+                if (stats[home]) stats[home].matches_lost++;
+                muAwayWins++;
+            }
+        }
+
+        if (!isMatchupPlayed(mu)) continue;
+        if (stats[home]) stats[home].matchups_played++;
+        if (stats[away]) stats[away].matchups_played++;
+
+        if (muHomeWins > muAwayWins) {
+            if (stats[home]) stats[home].matchups_won++;
+            if (stats[away]) stats[away].matchups_lost++;
+        } else if (muAwayWins > muHomeWins) {
+            if (stats[away]) stats[away].matchups_won++;
+            if (stats[home]) stats[home].matchups_lost++;
+        } else {
+            if (stats[home]) stats[home].matchups_draw++;
+            if (stats[away]) stats[away].matchups_draw++;
+        }
+    }
+
+    return Object.values(stats).sort((a, b) => {
+        if (b.matchups_won !== a.matchups_won) return b.matchups_won - a.matchups_won;
+        const mDiffA = a.matches_won - a.matches_lost, mDiffB = b.matches_won - b.matches_lost;
+        if (mDiffB !== mDiffA) return mDiffB - mDiffA;
+        const sDiffA = a.sets_won - a.sets_lost, sDiffB = b.sets_won - b.sets_lost;
+        if (sDiffB !== sDiffA) return sDiffB - sDiffA;
+        return (b.games_won - b.games_lost) - (a.games_won - a.games_lost);
+    });
+}
+
+// --- Rendering ---
+
+function esc(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+}
+
+function renderNav() {
+    const el = document.getElementById('nav-auth');
+    const auth = getAuth();
+    if (isAdmin()) {
+        el.innerHTML = `<span class="nav-role">Admin</span><a href="#" class="nav-link" id="logout-btn">Uitloggen</a>`;
+    } else if (auth?.role === 'team') {
+        el.innerHTML = `<span class="nav-role">${esc(auth.team_name)}</span><a href="#" class="nav-link" id="logout-btn">Uitloggen</a>`;
+    } else {
+        el.innerHTML = `<a href="#login" class="nav-link">Inloggen</a>`;
+    }
+    document.getElementById('logout-btn')?.addEventListener('click', e => {
+        e.preventDefault();
+        clearAuth();
+        navigate('');
+    });
+}
+
+function renderHome() {
+    if (!DATA) return '<p>Laden...</p>';
+    let html = '<h1>Poules</h1><div class="poules-grid">';
+    for (const poule of DATA.poules) {
+        const standings = calcStandings(poule);
+        const top3 = standings.slice(0, 3).map((s, i) =>
+            `<tr><td class="rank">${i + 1}.</td><td>${esc(s.team.name)}</td><td class="num">${s.matchups_won}W</td></tr>`
+        ).join('');
+        html += `
+            <a href="#poule/${poule.id}" class="poule-card">
+                <h2>${esc(poule.name)}</h2>
+                <p>${poule.teams.length} teams</p>
+                ${top3 ? `<table class="mini-standings"><tbody>${top3}</tbody></table>` : ''}
+            </a>`;
+    }
+    html += '</div>';
+    return html;
+}
+
+function renderLogin() {
+    return `
+        <div class="login-center">
+            <div class="login-card">
+                <h1>TAM Vrijdagcompetitie</h1>
+                <p class="login-hint">Voer je teamcode of admincode in</p>
+                <form id="login-form">
+                    <input type="password" id="login-code" placeholder="Code" autofocus required>
+                    <p class="error" id="login-error" style="display:none"></p>
+                    <button type="submit">Inloggen</button>
+                </form>
+                <a href="#" class="login-skip">Alleen bekijken</a>
+            </div>
+        </div>`;
+}
+
+function getTeamCode(teamId) {
+    if (!ADMIN_DATA) return null;
+    for (const p of ADMIN_DATA.poules) {
+        const t = p.teams.find(t => t.id === teamId);
+        if (t) return t.code;
+    }
+    return null;
+}
+
+function renderPoule(pouleId) {
+    if (!DATA) return '<p>Laden...</p>';
+    const poule = DATA.poules.find(p => p.id === pouleId);
+    if (!poule) return '<p>Poule niet gevonden.</p>';
+    const standings = calcStandings(poule);
+    const teamId = getTeamId();
+    const teams = {};
+    poule.teams.forEach(t => teams[t.id] = t);
+
+    let html = `<h1>${esc(poule.name)}</h1>`;
+
+    // Standings table
+    html += `<h2>Stand</h2><div class="table-wrap"><table class="standings">
+        <thead><tr>
+            <th>#</th><th>Team</th><th title="Ontmoetingen gespeeld">Gesp.</th>
+            <th title="Gewonnen">W</th><th title="Gelijk">G</th><th title="Verloren">V</th>
+            <th title="Wedstrijden +/-">Wed. +/-</th><th>Sets +/-</th><th>Games +/-</th>
+        </tr></thead><tbody>`;
+    standings.forEach((s, i) => {
+        const hl = s.team.id === teamId ? ' class="highlight"' : '';
+        html += `<tr${hl}>
+            <td>${i + 1}</td><td>${esc(s.team.name)}</td>
+            <td class="num">${s.matchups_played}</td><td class="num">${s.matchups_won}</td>
+            <td class="num">${s.matchups_draw}</td><td class="num">${s.matchups_lost}</td>
+            <td class="num">${s.matches_won}-${s.matches_lost}</td>
+            <td class="num">${s.sets_won}-${s.sets_lost}</td>
+            <td class="num">${s.games_won}-${s.games_lost}</td>
+        </tr>`;
+    });
+    html += '</tbody></table></div>';
+
+    // Teams
+    html += '<h2>Teams</h2><div class="team-list">';
+    for (const t of poule.teams) {
+        const code = isAdmin() ? getTeamCode(t.id) : null;
+        const canEditPlayers = isAdmin() || teamId === t.id;
+        html += `<div class="team-item"><div class="team-info">
+            <strong>${esc(t.name)}</strong>
+            ${code ? `<span class="team-code">Code: ${esc(code)}</span>` : ''}
+            ${t.players.length ? `<span class="team-players">${esc(t.players.join(', '))}</span>` :
+                '<span class="team-players empty">Nog geen spelers</span>'}
+        </div>`;
+        if (canEditPlayers) {
+            html += `<div class="team-actions">
+                <form class="form-inline-sm player-form" data-team-id="${t.id}" data-poule-id="${poule.id}">
+                    <input type="text" name="players" placeholder="Spelers (kommagescheiden)" value="${esc(t.players.join(', '))}">
+                    <button type="submit" class="btn-sm">Opslaan</button>
+                </form>
+            </div>`;
+        }
+        html += '</div>';
+    }
+    html += '</div>';
+
+    // Matchups
+    html += '<h2>Ontmoetingen</h2><div class="matches">';
+    for (const mu of poule.matchups) {
+        const playedCount = mu.matches.filter(m => m.played).length;
+        const isMyMatchup = teamId === mu.home;
+        let cls = 'match-card';
+        if (playedCount === 4) cls += ' completed';
+        if (isMyMatchup) cls += ' my-matchup';
+
+        let progress = `${playedCount}/4 gespeeld`;
+        if (playedCount === 4) {
+            let hw = 0, aw = 0;
+            for (const m of mu.matches) {
+                const w = matchWinner(m);
+                if (w === 'home') hw++;
+                if (w === 'away') aw++;
+            }
+            progress = `Uitslag: ${hw}-${aw}`;
+        }
+
+        html += `<a href="#matchup/${poule.id}/${mu.id}" class="${cls}">
+            <div class="match-teams">
+                <span>${esc(teams[mu.home]?.name || '?')}</span>
+                <span class="vs">vs</span>
+                <span>${esc(teams[mu.away]?.name || '?')}</span>
+            </div>
+            <div class="matchup-progress">${progress}</div>
+        </a>`;
+    }
+    html += '</div>';
+
+    if (!teamId && !isAdmin()) {
+        html += '<p class="login-prompt"><a href="#login">Inloggen</a> om uitslagen in te voeren of spelers te beheren.</p>';
+    }
+
+    return html;
+}
+
+function renderMatchup(pouleId, matchupId) {
+    if (!DATA) return '<p>Laden...</p>';
+    const poule = DATA.poules.find(p => p.id === pouleId);
+    if (!poule) return '<p>Poule niet gevonden.</p>';
+    const matchup = poule.matchups.find(mu => mu.id === matchupId);
+    if (!matchup) return '<p>Ontmoeting niet gevonden.</p>';
+
+    const teams = {};
+    poule.teams.forEach(t => teams[t.id] = t);
+    const homeTeam = teams[matchup.home];
+    const awayTeam = teams[matchup.away];
+    const canEdit = isAdmin() || getTeamId() === matchup.home;
+
+    const labels = ['Singles 1', 'Singles 2', 'Doubles 1', 'Doubles 2'];
+
+    let html = `<p><a href="#poule/${pouleId}">&larr; ${esc(poule.name)}</a></p>
+        <h1>${esc(homeTeam?.name || '?')} vs ${esc(awayTeam?.name || '?')}</h1>`;
+
+    matchup.matches.forEach((m, idx) => {
+        html += `<div class="match-card ${m.played ? 'played' : ''}">
+            <h3>${labels[idx]} <span class="badge">${m.type}</span></h3>`;
+
+        if (m.played) {
+            html += `<div class="match-detail-players">
+                <div><strong>${esc(homeTeam?.name || '?')}:</strong> ${esc(m.home_players.join(' / '))}</div>
+                <div><strong>${esc(awayTeam?.name || '?')}:</strong> ${esc(m.away_players.join(' / '))}</div>
+            </div>
+            <div class="match-result">
+                ${m.sets.map(s => `<span class="set-score">${s[0]}-${s[1]}</span>`).join('')}
+            </div>`;
+            if (canEdit) {
+                html += `<button class="btn-sm btn-muted reset-btn" data-idx="${idx}">Wijzigen</button>`;
+            }
+        } else if (canEdit) {
+            const numPlayers = m.type === 'singles' ? 1 : 2;
+            html += `<form class="result-form" data-idx="${idx}">
+                <div class="player-select">
+                    <div class="player-col"><label>${esc(homeTeam?.name || '?')}</label>`;
+            for (let p = 0; p < numPlayers; p++) {
+                html += `<select name="home_player" required>
+                    <option value="">-- ${numPlayers > 1 ? 'Speler ' + (p + 1) : 'Kies speler'} --</option>
+                    ${(homeTeam?.players || []).map(pl => `<option value="${esc(pl)}">${esc(pl)}</option>`).join('')}
+                </select>`;
+            }
+            html += `</div><div class="player-col"><label>${esc(awayTeam?.name || '?')}</label>`;
+            for (let p = 0; p < numPlayers; p++) {
+                html += `<select name="away_player" required>
+                    <option value="">-- ${numPlayers > 1 ? 'Speler ' + (p + 1) : 'Kies speler'} --</option>
+                    ${(awayTeam?.players || []).map(pl => `<option value="${esc(pl)}">${esc(pl)}</option>`).join('')}
+                </select>`;
+            }
+            html += `</div></div>
+                <div class="sets-input">
+                    ${[1, 2, 3].map(i => `
+                        <div class="set-group">
+                            <label>Set ${i}</label>
+                            <div class="set-scores">
+                                <input type="number" name="home_set${i}" min="0" max="99" placeholder="-" ${i <= 2 ? 'required' : ''}>
+                                <span>-</span>
+                                <input type="number" name="away_set${i}" min="0" max="99" placeholder="-" ${i <= 2 ? 'required' : ''}>
+                            </div>
+                        </div>`).join('')}
+                </div>
+                <button type="submit">Opslaan</button>
+            </form>`;
+        } else {
+            html += '<p class="empty">Nog niet gespeeld</p>';
+        }
+
+        html += '</div>';
+    });
+
+    if (!canEdit && !isAdmin()) {
+        html += '<p class="login-prompt"><a href="#login">Inloggen</a> om uitslagen in te voeren.</p>';
+    }
+
+    return html;
+}
+
+// --- Routing ---
+
+async function navigate(hash) {
+    const app = document.getElementById('app');
+    hash = hash || location.hash.replace(/^#/, '');
+
+    if (!DATA && hash !== 'login') {
+        app.innerHTML = '<p>Laden...</p>';
+        await fetchData();
+    }
+
+    renderNav();
+
+    if (hash === 'login') {
+        app.innerHTML = renderLogin();
+        bindLogin();
+    } else if (hash.startsWith('poule/')) {
+        const pouleId = hash.split('/')[1];
+        app.innerHTML = renderPoule(pouleId);
+        bindPouleActions();
+    } else if (hash.startsWith('matchup/')) {
+        const [, pouleId, matchupId] = hash.split('/');
+        app.innerHTML = renderMatchup(pouleId, matchupId);
+        bindMatchupActions(pouleId, matchupId);
+    } else {
+        app.innerHTML = renderHome();
+    }
+}
+
+// --- Event Binding ---
+
+function bindLogin() {
+    document.getElementById('login-form')?.addEventListener('submit', async e => {
+        e.preventDefault();
+        const code = document.getElementById('login-code').value.trim();
+        const errEl = document.getElementById('login-error');
+        errEl.style.display = 'none';
+
+        const result = await apiLogin(code);
+        if (result.ok) {
+            const auth = { code, role: result.role, team_id: result.team_id, team_name: result.team_name, poule_id: result.poule_id };
+            setAuth(auth);
+            if (result.data) ADMIN_DATA = result.data;
+            if (result.role === 'team') {
+                location.hash = `poule/${result.poule_id}`;
+            } else {
+                location.hash = '';
+            }
+        } else {
+            errEl.textContent = result.error || 'Onjuiste code';
+            errEl.style.display = 'block';
+        }
+    });
+}
+
+function bindPouleActions() {
+    document.querySelectorAll('.player-form').forEach(form => {
+        form.addEventListener('submit', async e => {
+            e.preventDefault();
+            const teamId = form.dataset.teamId;
+            const playersStr = form.querySelector('input[name="players"]').value;
+            const players = playersStr.split(',').map(p => p.trim()).filter(Boolean);
+            const result = await apiSavePlayers(teamId, players);
+            if (result.ok) {
+                await fetchData();
+                navigate();
+            }
+        });
+    });
+}
+
+function bindMatchupActions(pouleId, matchupId) {
+    document.querySelectorAll('.result-form').forEach(form => {
+        form.addEventListener('submit', async e => {
+            e.preventDefault();
+            const idx = parseInt(form.dataset.idx);
+            const homePlayers = Array.from(form.querySelectorAll('select[name="home_player"]')).map(s => s.value).filter(Boolean);
+            const awayPlayers = Array.from(form.querySelectorAll('select[name="away_player"]')).map(s => s.value).filter(Boolean);
+            const sets = [];
+            for (let i = 1; i <= 3; i++) {
+                const h = form.querySelector(`input[name="home_set${i}"]`)?.value;
+                const a = form.querySelector(`input[name="away_set${i}"]`)?.value;
+                if (h !== '' && a !== '' && h != null && a != null) {
+                    sets.push([parseInt(h), parseInt(a)]);
+                }
+            }
+            if (sets.length > 0 && homePlayers.length > 0 && awayPlayers.length > 0) {
+                const result = await apiSaveResult(pouleId, matchupId, idx, homePlayers, awayPlayers, sets);
+                if (result.ok) {
+                    await fetchData();
+                    navigate();
+                }
+            }
+        });
+    });
+
+    document.querySelectorAll('.reset-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const idx = parseInt(btn.dataset.idx);
+            const result = await apiResetResult(pouleId, matchupId, idx);
+            if (result.ok) {
+                await fetchData();
+                navigate();
+            }
+        });
+    });
+}
+
+// --- Init ---
+
+window.addEventListener('hashchange', () => navigate());
+window.addEventListener('load', async () => {
+    // If admin, fetch full data with codes
+    if (isAdmin()) {
+        const result = await apiLogin(getAuth().code);
+        if (result.ok && result.data) ADMIN_DATA = result.data;
+    }
+    navigate();
+});
+</script>
+</body>
+</html>
