@@ -194,14 +194,14 @@ function renderHome() {
     let html = '<h1>Poules</h1><div class="poules-grid">';
     for (const poule of DATA.poules) {
         const standings = calcStandings(poule);
-        const top3 = standings.slice(0, 3).map((s, i) =>
+        const rows = standings.map((s, i) =>
             `<tr><td class="rank">${i + 1}.</td><td>${esc(s.team.name)}</td><td class="num">${s.matchups_won}W</td></tr>`
         ).join('');
         html += `
             <a href="#poule/${poule.id}" class="poule-card">
                 <h2>${esc(poule.name)}</h2>
                 <p>${poule.teams.length} teams</p>
-                ${top3 ? `<table class="mini-standings"><tbody>${top3}</tbody></table>` : ''}
+                ${rows ? `<table class="mini-standings"><tbody>${rows}</tbody></table>` : ''}
             </a>`;
     }
     html += '</div>';
