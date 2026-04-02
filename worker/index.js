@@ -8,7 +8,7 @@ const SEED_DATA = {
         { id: 'tam-1', name: 'TAM 1', code: '', players: [] },
         { id: 'gstc-1', name: 'GSTC 1', code: '', players: [] },
         { id: 'veracket-1', name: 'Veracket 1', code: '', players: [] },
-        { id: 'gstc-dames-2', name: 'GSTC dames 2', code: '', players: [] },
+        { id: 'veracket-2', name: 'Veracket 2', code: '', players: [] },
         { id: 'gstc-2', name: 'GSTC 2', code: '', players: [] },
       ], matchups: []
     },
@@ -17,9 +17,9 @@ const SEED_DATA = {
         { id: 'tam-2', name: 'TAM 2', code: '', players: [] },
         { id: 'tam-3', name: 'TAM 3', code: '', players: [] },
         { id: 'tam-dames-1', name: 'TAM Dames 1', code: '', players: [] },
-        { id: 'veracket-2', name: 'Veracket 2', code: '', players: [] },
-        { id: 'tam-dames-3', name: 'TAM dames 3', code: '', players: [] },
-        { id: 'gstc-dames-3', name: 'GSTC dames 3', code: '', players: [] },
+        { id: 'veracket-3', name: 'Veracket 3', code: '', players: [] },
+        { id: 'tam-dames-2', name: 'TAM dames 2', code: '', players: [] },
+        { id: 'gstc-dames-1', name: 'GSTC dames 1', code: '', players: [] },
       ], matchups: []
     },
     {
@@ -28,13 +28,13 @@ const SEED_DATA = {
         { id: 'tam-5', name: 'TAM 5', code: '', players: [] },
         { id: 'gstc-3', name: 'GSTC 3', code: '', players: [] },
         { id: 'veracket-4', name: 'Veracket 4', code: '', players: [] },
-        { id: 'veracket-3', name: 'Veracket 3', code: '', players: [] },
-        { id: 'tam-dames-2', name: 'TAM dames 2', code: '', players: [] },
+        { id: 'gstc-dames-2', name: 'GSTC dames 2', code: '', players: [] },
+        { id: 'tam-dames-3', name: 'TAM dames 3', code: '', players: [] },
       ], matchups: []
     },
     {
       id: 'poule-d', name: 'Poule D', teams: [
-        { id: 'gstc-dames-1', name: 'GSTC dames 1', code: '', players: [] },
+        { id: 'gstc-dames-3', name: 'GSTC dames 3', code: '', players: [] },
         { id: 'veracket-dames-1', name: 'Veracket dames 1', code: '', players: [] },
         { id: 'tam-6', name: 'TAM 6', code: '', players: [] },
         { id: 'tam-7', name: 'TAM 7', code: '', players: [] },

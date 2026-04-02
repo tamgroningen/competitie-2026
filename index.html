@@ -287,36 +287,59 @@ function renderPoule(pouleId) {
     }
     html += '</div>';
 
-    // Matchups
-    html += '<h2>Ontmoetingen</h2><div class="matches">';
-    for (const mu of poule.matchups) {
-        const playedCount = mu.matches.filter(m => m.played).length;
-        const isMyMatchup = teamId === mu.home;
-        let cls = 'match-card';
-        if (playedCount === 4) cls += ' completed';
-        if (isMyMatchup) cls += ' my-matchup';
+    // Matchups grouped by date
+    html += '<h2>Ontmoetingen</h2>';
+    const dates = [...new Set(poule.matchups.map(mu => mu.date).filter(Boolean))].sort();
+    const noDate = poule.matchups.filter(mu => !mu.date);
 
-        let progress = `${playedCount}/4 gespeeld`;
-        if (playedCount === 4) {
-            let hw = 0, aw = 0;
-            for (const m of mu.matches) {
-                const w = matchWinner(m);
-                if (w === 'home') hw++;
-                if (w === 'away') aw++;
+    for (const date of dates) {
+        const dayMatchups = poule.matchups.filter(mu => mu.date === date);
+        const dt = new Date(date + 'T00:00:00');
+        const label = dt.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' });
+        html += `<h3 style="text-transform:capitalize">${label}</h3><div class="matches">`;
+        for (const mu of dayMatchups) {
+            const playedCount = mu.matches.filter(m => m.played).length;
+            const isMyMatchup = teamId === mu.home;
+            let cls = 'match-card';
+            if (playedCount === 4) cls += ' completed';
+            if (isMyMatchup) cls += ' my-matchup';
+
+            let progress = `${playedCount}/4 gespeeld`;
+            if (playedCount === 4) {
+                let hw = 0, aw = 0;
+                for (const m of mu.matches) {
+                    const w = matchWinner(m);
+                    if (w === 'home') hw++;
+                    if (w === 'away') aw++;
+                }
+                progress = `Uitslag: ${hw}-${aw}`;
             }
-            progress = `Uitslag: ${hw}-${aw}`;
-        }
 
-        html += `<a href="#matchup/${poule.id}/${mu.id}" class="${cls}">
-            <div class="match-teams">
-                <span>${esc(teams[mu.home]?.name || '?')}</span>
-                <span class="vs">vs</span>
-                <span>${esc(teams[mu.away]?.name || '?')}</span>
-            </div>
-            <div class="matchup-progress">${progress}</div>
-        </a>`;
+            html += `<a href="#matchup/${poule.id}/${mu.id}" class="${cls}">
+                <div class="match-teams">
+                    <span>${esc(teams[mu.home]?.name || '?')}</span>
+                    <span class="vs">vs</span>
+                    <span>${esc(teams[mu.away]?.name || '?')}</span>
+                </div>
+                <div class="matchup-progress">${progress}</div>
+            </a>`;
+        }
+        html += '</div>';
     }
-    html += '</div>';
+
+    if (noDate.length > 0) {
+        html += '<h3>Overig</h3><div class="matches">';
+        for (const mu of noDate) {
+            html += `<a href="#matchup/${poule.id}/${mu.id}" class="match-card">
+                <div class="match-teams">
+                    <span>${esc(teams[mu.home]?.name || '?')}</span>
+                    <span class="vs">vs</span>
+                    <span>${esc(teams[mu.away]?.name || '?')}</span>
+                </div>
+            </a>`;
+        }
+        html += '</div>';
+    }
 
     if (!teamId && !isAdmin()) {
         html += '<p class="login-prompt"><a href="#login">Inloggen</a> om uitslagen in te voeren of spelers te beheren.</p>';
@@ -340,8 +363,10 @@ function renderMatchup(pouleId, matchupId) {
 
     const labels = ['Singles 1', 'Singles 2', 'Doubles 1', 'Doubles 2'];
 
+    const dateLabel = matchup.date ? new Date(matchup.date + 'T00:00:00').toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' }) : '';
     let html = `<p><a href="#poule/${pouleId}">&larr; ${esc(poule.name)}</a></p>
-        <h1>${esc(homeTeam?.name || '?')} vs ${esc(awayTeam?.name || '?')}</h1>`;
+        <h1>${esc(homeTeam?.name || '?')} vs ${esc(awayTeam?.name || '?')}</h1>
+        ${dateLabel ? `<p style="color:var(--muted);margin-top:-12px;margin-bottom:16px;text-transform:capitalize">${dateLabel}</p>` : ''}`;
 
     matchup.matches.forEach((m, idx) => {
         html += `<div class="match-card ${m.played ? 'played' : ''}">
