@@ -317,7 +317,7 @@ function renderPoule(pouleId) {
                     <span class="vs">vs</span>
                     <span>${esc(teams[mu.away]?.name || '?')}</span>
                 </div>
-                <div class="matchup-progress">${progress}</div>
+                <div class="matchup-progress">${mu.time ? `<span class="matchup-time">${mu.time}</span> · ` : ''}${progress}</div>
                 ${playedCount < 4 ? `<div class="matchup-scorer">Scores: ${esc(teams[mu.home]?.name || '?')}</div>` : ''}
             </a>`;
         }
@@ -360,7 +360,7 @@ function renderMatchup(pouleId, matchupId) {
 
     const labels = ['Singles 1', 'Singles 2', 'Doubles 1', 'Doubles 2'];
 
-    const dateLabel = matchup.date ? new Date(matchup.date + 'T00:00:00').toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' }) : '';
+    const dateLabel = matchup.date ? new Date(matchup.date + 'T00:00:00').toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' }) + (matchup.time ? ` · ${matchup.time}` : '') : '';
     let html = `<p><a href="#poule/${pouleId}">&larr; ${esc(poule.name)}</a></p>
         <h1>${esc(homeTeam?.name || '?')} vs ${esc(awayTeam?.name || '?')}</h1>
         ${dateLabel ? `<p style="color:var(--muted);margin-top:-12px;margin-bottom:16px;text-transform:capitalize">${dateLabel}</p>` : ''}
