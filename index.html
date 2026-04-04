@@ -155,9 +155,7 @@ function calcStandings(poule) {
     }
 
     return Object.values(stats).sort((a, b) => {
-        if (b.matchups_won !== a.matchups_won) return b.matchups_won - a.matchups_won;
-        const mDiffA = a.matches_won - a.matches_lost, mDiffB = b.matches_won - b.matches_lost;
-        if (mDiffB !== mDiffA) return mDiffB - mDiffA;
+        if (b.matches_won !== a.matches_won) return b.matches_won - a.matches_won;
         const sDiffA = a.sets_won - a.sets_lost, sDiffB = b.sets_won - b.sets_lost;
         if (sDiffB !== sDiffA) return sDiffB - sDiffA;
         return (b.games_won - b.games_lost) - (a.games_won - a.games_lost);
@@ -247,17 +245,15 @@ function renderPoule(pouleId) {
     // Standings table
     html += `<h2>Stand</h2><div class="table-wrap"><table class="standings">
         <thead><tr>
-            <th>#</th><th>Team</th><th title="Ontmoetingen gespeeld">Gesp.</th>
-            <th title="Gewonnen">W</th><th title="Gelijk">G</th><th title="Verloren">V</th>
-            <th title="Wedstrijden +/-">Wed. +/-</th><th>Sets +/-</th><th>Games +/-</th>
+            <th>#</th><th>Team</th>
+            <th title="Wedstrijden gewonnen">W</th><th title="Wedstrijden verloren">V</th>
+            <th>Sets +/-</th><th>Games +/-</th>
         </tr></thead><tbody>`;
     standings.forEach((s, i) => {
         const hl = s.team.id === teamId ? ' class="highlight"' : '';
         html += `<tr${hl}>
             <td>${i + 1}</td><td>${esc(s.team.name)}</td>
-            <td class="num">${s.matchups_played}</td><td class="num">${s.matchups_won}</td>
-            <td class="num">${s.matchups_draw}</td><td class="num">${s.matchups_lost}</td>
-            <td class="num">${s.matches_won}-${s.matches_lost}</td>
+            <td class="num">${s.matches_won}</td><td class="num">${s.matches_lost}</td>
             <td class="num">${s.sets_won}-${s.sets_lost}</td>
             <td class="num">${s.games_won}-${s.games_lost}</td>
         </tr>`;
@@ -322,6 +318,7 @@ function renderPoule(pouleId) {
                     <span>${esc(teams[mu.away]?.name || '?')}</span>
                 </div>
                 <div class="matchup-progress">${progress}</div>
+                ${playedCount < 4 ? `<div class="matchup-scorer">Scores: ${esc(teams[mu.home]?.name || '?')}</div>` : ''}
             </a>`;
         }
         html += '</div>';
@@ -366,7 +363,8 @@ function renderMatchup(pouleId, matchupId) {
     const dateLabel = matchup.date ? new Date(matchup.date + 'T00:00:00').toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' }) : '';
     let html = `<p><a href="#poule/${pouleId}">&larr; ${esc(poule.name)}</a></p>
         <h1>${esc(homeTeam?.name || '?')} vs ${esc(awayTeam?.name || '?')}</h1>
-        ${dateLabel ? `<p style="color:var(--muted);margin-top:-12px;margin-bottom:16px;text-transform:capitalize">${dateLabel}</p>` : ''}`;
+        ${dateLabel ? `<p style="color:var(--muted);margin-top:-12px;margin-bottom:16px;text-transform:capitalize">${dateLabel}</p>` : ''}
+        ${canEdit ? `<p style="color:var(--green);font-size:0.85rem;margin-bottom:16px;font-weight:600">Scores invullen: ${esc(homeTeam?.name || '?')}</p>` : `<p style="color:var(--muted);font-size:0.85rem;margin-bottom:16px">Scores worden ingevuld door ${esc(homeTeam?.name || '?')}</p>`}`;
 
     matchup.matches.forEach((m, idx) => {
         html += `<div class="match-card ${m.played ? 'played' : ''}">
