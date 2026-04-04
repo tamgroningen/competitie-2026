@@ -164,6 +164,58 @@ function calcStandings(poule) {
 
 // --- Rendering ---
 
+function getClub(teamName) {
+    const n = teamName.toLowerCase();
+    if (n.startsWith('gstc')) return 'GSTC';
+    if (n.startsWith('veracket')) return 'Veracket';
+    return 'TAM';
+}
+
+function calcClubStandings() {
+    if (!DATA) return [];
+    const clubs = {};
+    for (const club of ['TAM', 'GSTC', 'Veracket']) {
+        clubs[club] = { name: club, matches_won: 0, matches_lost: 0, sets_won: 0, sets_lost: 0 };
+    }
+
+    for (const poule of DATA.poules) {
+        const teams = {};
+        poule.teams.forEach(t => teams[t.id] = t);
+
+        for (const mu of poule.matchups) {
+            const homeClub = getClub(teams[mu.home]?.name || '');
+            const awayClub = getClub(teams[mu.away]?.name || '');
+
+            // Skip intra-club matchups
+            if (homeClub === awayClub) continue;
+
+            for (const m of mu.matches) {
+                if (!m.played) continue;
+                const hSets = m.sets.filter(s => s[0] > s[1]).length;
+                const aSets = m.sets.filter(s => s[1] > s[0]).length;
+
+                clubs[homeClub].sets_won += hSets;
+                clubs[homeClub].sets_lost += aSets;
+                clubs[awayClub].sets_won += aSets;
+                clubs[awayClub].sets_lost += hSets;
+
+                if (hSets > aSets) {
+                    clubs[homeClub].matches_won++;
+                    clubs[awayClub].matches_lost++;
+                } else if (aSets > hSets) {
+                    clubs[awayClub].matches_won++;
+                    clubs[homeClub].matches_lost++;
+                }
+            }
+        }
+    }
+
+    return Object.values(clubs).sort((a, b) => {
+        if (b.matches_won !== a.matches_won) return b.matches_won - a.matches_won;
+        return (b.sets_won - b.sets_lost) - (a.sets_won - a.sets_lost);
+    });
+}
+
 function esc(s) {
     const d = document.createElement('div');
     d.textContent = s;
@@ -189,11 +241,33 @@ function renderNav() {
 
 function renderHome() {
     if (!DATA) return '<p>Laden...</p>';
-    let html = '<h1>Poules</h1><div class="poules-grid">';
+
+    // Club standings (trophy race)
+    const clubStandings = calcClubStandings();
+    const totalClubMatches = clubStandings.reduce((s, c) => s + c.matches_won, 0);
+    let html = `<h1>Verenigingsstand</h1>
+        <div class="club-standings">`;
+    const medals = ['🥇', '🥈', '🥉'];
+    clubStandings.forEach((c, i) => {
+        const pct = (c.matches_won + c.matches_lost) > 0 ? Math.round(c.matches_won / (c.matches_won + c.matches_lost) * 100) : 0;
+        html += `<div class="club-card">
+            <div class="club-rank">${medals[i] || ''}</div>
+            <div class="club-info">
+                <strong>${esc(c.name)}</strong>
+                <span class="club-stats">${c.matches_won}W - ${c.matches_lost}V${(c.matches_won + c.matches_lost) > 0 ? ` (${pct}%)` : ''}</span>
+            </div>
+            <div class="club-bar"><div class="club-bar-fill" style="width:${pct}%"></div></div>
+        </div>`;
+    });
+    html += `</div>
+        <p style="font-size:0.75rem;color:var(--muted);margin-top:4px">Alleen wedstrijden tussen verschillende verenigingen tellen mee</p>`;
+
+    // Poules
+    html += '<h1 style="margin-top:24px">Poules</h1><div class="poules-grid">';
     for (const poule of DATA.poules) {
         const standings = calcStandings(poule);
         const rows = standings.map((s, i) =>
-            `<tr><td class="rank">${i + 1}.</td><td>${esc(s.team.name)}</td><td class="num">${s.matchups_won}W</td></tr>`
+            `<tr><td class="rank">${i + 1}.</td><td>${esc(s.team.name)}</td><td class="num">${s.matches_won}W</td></tr>`
         ).join('');
         html += `
             <a href="#poule/${poule.id}" class="poule-card">
