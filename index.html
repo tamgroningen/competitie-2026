@@ -211,7 +211,9 @@ function calcClubStandings() {
     }
 
     return Object.values(clubs).sort((a, b) => {
-        if (b.matches_won !== a.matches_won) return b.matches_won - a.matches_won;
+        const pctA = (a.matches_won + a.matches_lost) > 0 ? a.matches_won / (a.matches_won + a.matches_lost) : 0;
+        const pctB = (b.matches_won + b.matches_lost) > 0 ? b.matches_won / (b.matches_won + b.matches_lost) : 0;
+        if (pctB !== pctA) return pctB - pctA;
         return (b.sets_won - b.sets_lost) - (a.sets_won - a.sets_lost);
     });
 }
@@ -249,13 +251,15 @@ function renderHome() {
         <div class="club-standings">`;
     const medals = ['🥇', '🥈', '🥉'];
     clubStandings.forEach((c, i) => {
-        const pct = (c.matches_won + c.matches_lost) > 0 ? Math.round(c.matches_won / (c.matches_won + c.matches_lost) * 100) : 0;
+        const total = c.matches_won + c.matches_lost;
+        const pct = total > 0 ? Math.round(c.matches_won / total * 100) : 0;
         html += `<div class="club-card">
             <div class="club-rank">${medals[i] || ''}</div>
             <div class="club-info">
                 <strong>${esc(c.name)}</strong>
-                <span class="club-stats">${c.matches_won}W - ${c.matches_lost}V${(c.matches_won + c.matches_lost) > 0 ? ` (${pct}%)` : ''}</span>
+                <span class="club-pct">${total > 0 ? pct + '%' : '-'}</span>
             </div>
+            <span class="club-stats">${c.matches_won}W - ${c.matches_lost}V</span>
             <div class="club-bar"><div class="club-bar-fill" style="width:${pct}%"></div></div>
         </div>`;
     });
@@ -371,7 +375,7 @@ function renderPoule(pouleId) {
     }
 
     // Matchups grouped by date
-    html += '<h2>Ontmoetingen</h2>';
+    html += '<h2>Speeldagen</h2>';
     const dates = [...new Set(poule.matchups.map(mu => mu.date).filter(Boolean))].sort();
     const noDate = poule.matchups.filter(mu => !mu.date);
 
@@ -382,7 +386,7 @@ function renderPoule(pouleId) {
         html += `<h3 style="text-transform:capitalize">${label}</h3><div class="matches">`;
         for (const mu of dayMatchups) {
             const playedCount = mu.matches.filter(m => m.played).length;
-            const isMyMatchup = teamId === mu.home;
+            const isMyMatchup = teamId === mu.home || teamId === mu.away;
             let cls = 'match-card';
             if (playedCount === 4) cls += ' completed';
             if (isMyMatchup) cls += ' my-matchup';
@@ -405,7 +409,7 @@ function renderPoule(pouleId) {
                     <span>${esc(teams[mu.away]?.name || '?')}</span>
                 </div>
                 <div class="matchup-progress">${mu.time ? `<span class="matchup-time">${mu.time}</span> · ` : ''}${progress}</div>
-                ${playedCount < 4 ? `<div class="matchup-scorer">Scores: ${esc(teams[mu.home]?.name || '?')}</div>` : ''}
+                ${playedCount < 4 ? `<div class="matchup-scorer">Uitslagen invullen: ${esc(teams[mu.home]?.name || '?')}</div>` : ''}
             </a>`;
         }
         html += '</div>';
