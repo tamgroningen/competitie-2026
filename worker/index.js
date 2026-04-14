@@ -256,6 +256,29 @@ export default {
       return json({ ok: true });
     }
 
+    // POST /schedule — set date/time for matchups (admin only)
+    if (request.method === 'POST' && path === '/schedule') {
+      const { code, updates } = await request.json();
+      // updates: [{ poule_id, matchup_id, date, time }, ...]
+      const raw = await env.COMPETITIE.get('data');
+      if (!raw) return json({ error: 'No data' }, 500);
+      const data = JSON.parse(raw);
+      const auth = validateCode(data, code);
+      if (!auth || auth.role !== 'admin') return json({ error: 'Alleen admin' }, 403);
+
+      for (const u of updates) {
+        const poule = data.poules.find(p => p.id === u.poule_id);
+        if (!poule) continue;
+        const matchup = poule.matchups.find(mu => mu.id === u.matchup_id);
+        if (!matchup) continue;
+        if (u.date !== undefined) matchup.date = u.date;
+        if (u.time !== undefined) matchup.time = u.time;
+      }
+
+      await env.COMPETITIE.put('data', JSON.stringify(data));
+      return json({ ok: true });
+    }
+
     return json({ error: 'Not found' }, 404);
   },
 };

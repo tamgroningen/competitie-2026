@@ -461,6 +461,20 @@ button[type="submit"]:hover { background: var(--green-light); }
 .empty { color: var(--muted); font-style: italic; }
 .num { text-align: center; }
 
+/* Schedule editor */
+.schedule-editor { margin-bottom: 16px; }
+.schedule-editor > summary { cursor: pointer; font-size: 1.1rem; font-weight: 600; color: var(--green); }
+.schedule-table input[type="date"],
+.schedule-table input[type="time"] {
+    padding: 4px 6px;
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 0.85rem;
+    font-family: inherit;
+}
+.schedule-table input:focus { outline: none; border-color: var(--green); }
+.schedule-table td { white-space: nowrap; }
+
 /* Mobile */
 @media (max-width: 600px) {
     main { padding: 12px; }

@@ -87,6 +87,16 @@ async function apiResetResult(pouleId, matchupId, matchIdx) {
     return res.json();
 }
 
+async function apiSaveSchedule(updates) {
+    const auth = getAuth();
+    const res = await fetch(SYNC_URL + '/schedule', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: auth.code, updates }),
+    });
+    return res.json();
+}
+
 // --- Standings ---
 
 function matchWinner(m) {
@@ -374,6 +384,24 @@ function renderPoule(pouleId) {
         html += '</tbody></table></div></details>';
     }
 
+    // Admin schedule editor
+    if (isAdmin()) {
+        html += `<details class="schedule-editor"><summary>Schema beheren</summary><div style="margin-top:8px">
+            <div class="table-wrap"><table class="standings schedule-table">
+            <thead><tr><th>Thuis</th><th>Uit</th><th>Datum</th><th>Tijd</th></tr></thead><tbody>`;
+        for (const mu of poule.matchups) {
+            html += `<tr data-matchup-id="${mu.id}" data-poule-id="${poule.id}">
+                <td>${esc(teams[mu.home]?.name || '?')}</td>
+                <td>${esc(teams[mu.away]?.name || '?')}</td>
+                <td><input type="date" class="sched-date" value="${mu.date || ''}"></td>
+                <td><input type="time" class="sched-time" value="${mu.time || ''}"></td>
+            </tr>`;
+        }
+        html += `</tbody></table></div>
+            <button class="btn-sm" id="save-schedule-btn" style="margin-top:8px">Opslaan</button>
+        </div></details>`;
+    }
+
     // Matchups grouped by date
     html += '<h2>Speeldagen</h2>';
     const dates = [...new Set(poule.matchups.map(mu => mu.date).filter(Boolean))].sort();
@@ -610,6 +638,26 @@ function bindPouleActions() {
                 navigate();
             }
         });
+    });
+
+    document.getElementById('save-schedule-btn')?.addEventListener('click', async () => {
+        const rows = document.querySelectorAll('.schedule-table tbody tr');
+        const updates = [];
+        for (const row of rows) {
+            const date = row.querySelector('.sched-date').value || null;
+            const time = row.querySelector('.sched-time').value || null;
+            updates.push({
+                poule_id: row.dataset.pouleId,
+                matchup_id: row.dataset.matchupId,
+                date: date || '',
+                time: time || '',
+            });
+        }
+        const result = await apiSaveSchedule(updates);
+        if (result.ok) {
+            await fetchData();
+            navigate();
+        }
     });
 }
 
