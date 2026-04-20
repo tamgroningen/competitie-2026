@@ -129,8 +129,11 @@ function calcStandings(poule) {
             if (!m.played) continue;
             let hSets = 0, aSets = 0;
             for (const s of m.sets) {
-                if (stats[home]) { stats[home].games_won += s[0]; stats[home].games_lost += s[1]; }
-                if (stats[away]) { stats[away].games_won += s[1]; stats[away].games_lost += s[0]; }
+                const isTiebreak = s[0] >= 10 || s[1] >= 10;
+                const hGames = isTiebreak ? (s[0] > s[1] ? 1 : 0) : s[0];
+                const aGames = isTiebreak ? (s[1] > s[0] ? 1 : 0) : s[1];
+                if (stats[home]) { stats[home].games_won += hGames; stats[home].games_lost += aGames; }
+                if (stats[away]) { stats[away].games_won += aGames; stats[away].games_lost += hGames; }
                 if (s[0] > s[1]) hSets++; else aSets++;
             }
             if (stats[home]) { stats[home].sets_won += hSets; stats[home].sets_lost += aSets; }
