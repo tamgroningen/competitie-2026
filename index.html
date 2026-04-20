@@ -8,7 +8,7 @@
 </head>
 <body>
     <nav>
-        <a href="#" class="nav-brand"><img src="logo.webp" alt="TAM" class="nav-logo"><img src="logo-veracket.jpg" alt="Veracket" class="nav-logo"><img src="logo-gstc.jpeg" alt="GSTC" class="nav-logo">Vrijdagcompetitie</a>
+        <a href="#" class="nav-brand"><img src="logo.webp" alt="TAM" class="nav-logo"><img src="logo-veracket.jpg" alt="Vercracket" class="nav-logo"><img src="logo-gstc.jpeg" alt="GSTC" class="nav-logo">Vrijdagcompetitie</a>
         <div class="nav-right" id="nav-auth"></div>
     </nav>
     <main id="app"></main>
@@ -180,14 +180,14 @@ function calcStandings(poule) {
 function getClub(teamName) {
     const n = teamName.toLowerCase();
     if (n.startsWith('gstc')) return 'GSTC';
-    if (n.startsWith('veracket')) return 'Veracket';
+    if (n.startsWith('veracket')) return 'Vercracket';
     return 'TAM';
 }
 
 function calcClubStandings() {
     if (!DATA) return [];
     const clubs = {};
-    for (const club of ['TAM', 'GSTC', 'Veracket']) {
+    for (const club of ['TAM', 'GSTC', 'Vercracket']) {
         clubs[club] = { name: club, matches_won: 0, matches_lost: 0, sets_won: 0, sets_lost: 0 };
     }
 
